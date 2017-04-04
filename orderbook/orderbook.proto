@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package orderbook;
+
+import "github.com/gogo/protobuf/gogoproto/gogo.proto";
+// import "github.com/gogo/protobuf/protobuf/google/protobuf/timestamp.proto";
+
+// import "github.com/crypto-bank/proto/currency/currency.proto";
+import "github.com/crypto-bank/proto/order/order.proto";
+
+option go_package = "orderbook";
+option (gogoproto.unmarshaler_all) = true;
+option (gogoproto.marshaler_all) = true;
+option (gogoproto.equal_all) = true;
+
+
+service OrderBook {
+    // Orders - Streams order book updates.
+    // rpc Orders(OrdersRequest) returns (stream OrderBookUpdate) {};
+
+    // Trades - Streams trades.
+    // rpc Trades(OrdersRequest) returns (stream orderbook.Event) {};
+}
+
+// Event - Order or Trade event.
+message Event {
+    oneof event {
+        order.Order order = 1;
+        order.Trade trade = 2;
+    }
+}

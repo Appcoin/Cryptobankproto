@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+package currency;
+
+import "github.com/gogo/protobuf/gogoproto/gogo.proto";
+
+option (gogoproto.unmarshaler_all) = true;
+option (gogoproto.marshaler_all) = true;
+option (gogoproto.equal_all) = true;
+
+
+// Currency - Currency symbol.
+message Currency {
+    string symbol = 1;
+}
+
+// Pair - Currency pair.
+message Pair {
+    // First - First currency in pair.
+    Currency first = 1;
+
+    // Second - Second currency in pair.
+    Currency second = 2;
+}
+
+// Volume - Currency volume.
+message Volume {
+    // Currency - Currency symbol.
+    Currency currency = 1;
+
+    // Amount - Amount of currency.
+    double amount = 2;
+}

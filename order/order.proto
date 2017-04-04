@@ -1,0 +1,49 @@
+syntax = "proto3";
+
+package order;
+
+import "github.com/gogo/protobuf/gogoproto/gogo.proto";
+import "github.com/gogo/protobuf/protobuf/google/protobuf/timestamp.proto";
+
+import "github.com/crypto-bank/proto/exchange/exchange.proto";
+import "github.com/crypto-bank/proto/currency/currency.proto";
+
+option (gogoproto.unmarshaler_all) = true;
+option (gogoproto.marshaler_all) = true;
+option (gogoproto.equal_all) = true;
+
+// Type - Type of an order.
+// An `ask` (sell) or a `bid` (buy).
+enum Type {
+    option (gogoproto.goproto_enum_prefix) = false;
+
+    ASK = 0 [(gogoproto.enumvalue_customname) = "Ask"];
+    BID = 1 [(gogoproto.enumvalue_customname) = "Bid"];
+}
+
+// Order - Cryptocurrency order.
+message Order {
+    // Type - Type of an order.
+    Type type = 1;
+
+    // Volume - Volume of currency ordered.
+    currency.Volume volume = 2;
+
+    // Rate - Currency price rate.
+    currency.Volume rate = 3;
+
+    // Exchange - Exchange where order exists.
+    exchange.Exchange exchange = 4;
+}
+
+// Trade - New trade.
+message Trade {
+    // ID - ID of a trade.
+    int64 id = 1 [(gogoproto.customname) = "ID"];
+
+    // Order - Order traded.
+    order.Order order = 2;
+
+    // Time - Time of an order.
+    google.protobuf.Timestamp time = 3;
+}
