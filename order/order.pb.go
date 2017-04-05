@@ -66,7 +66,7 @@ type Order struct {
 	Volume *currency.Volume `protobuf:"bytes,2,opt,name=volume" json:"volume,omitempty"`
 	// Rate - Currency price rate.
 	Rate *currency.Volume `protobuf:"bytes,3,opt,name=rate" json:"rate,omitempty"`
-	// Exchange - Exchange where order exists.
+	// Exchange - Identifier of an exchange.
 	Exchange exchange.Exchange `protobuf:"varint,4,opt,name=exchange,proto3,enum=exchange.Exchange" json:"exchange,omitempty"`
 }
 
@@ -106,6 +106,7 @@ func (m *Order) GetExchange() exchange.Exchange {
 // Trade - New trade.
 type Trade struct {
 	// ID - ID of a trade.
+	// This ID is unique in scope of exchange only.
 	ID int64 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
 	// Order - Order traded.
 	Order *Order `protobuf:"bytes,2,opt,name=order" json:"order,omitempty"`

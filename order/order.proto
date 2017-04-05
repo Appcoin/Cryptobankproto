@@ -32,13 +32,14 @@ message Order {
     // Rate - Currency price rate.
     currency.Volume rate = 3;
 
-    // Exchange - Exchange where order exists.
+    // Exchange - Identifier of an exchange.
     exchange.Exchange exchange = 4;
 }
 
 // Trade - New trade.
 message Trade {
     // ID - ID of a trade.
+    // This ID is unique in scope of exchange only.
     int64 id = 1 [(gogoproto.customname) = "ID"];
 
     // Order - Order traded.
