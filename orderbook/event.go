@@ -3,12 +3,12 @@ package orderbook
 import "github.com/crypto-bank/proto/order"
 
 // NewEvent - Creates new event structure containing event.
-func NewEvent(ev interface{}) *Event {
+func NewEvent(id int64, ev interface{}) *Event {
 	switch event := ev.(type) {
 	case *order.Order:
-		return &Event{Event: &Event_Order{Order: event}}
+		return &Event{ID: id, Event: &Event_Order{Order: event}}
 	case *order.Trade:
-		return &Event{Event: &Event_Trade{Trade: event}}
+		return &Event{ID: id, Event: &Event_Trade{Trade: event}}
 	default:
 		panic("invalid event type")
 	}

@@ -3,29 +3,49 @@ syntax = "proto3";
 package orderbook;
 
 import "github.com/gogo/protobuf/gogoproto/gogo.proto";
-// import "github.com/gogo/protobuf/protobuf/google/protobuf/timestamp.proto";
+import "github.com/gogo/protobuf/protobuf/google/protobuf/timestamp.proto";
 
-// import "github.com/crypto-bank/proto/currency/currency.proto";
-import "github.com/crypto-bank/proto/order/order.proto";
+import "github.com/crypto-bank/proto/exchange/exchange.proto";
+import "github.com/crypto-bank/proto/currency/currency.proto";
+import "github.com/crypto-bank/proto/orderbook/event.proto";
 
 option go_package = "orderbook";
 option (gogoproto.unmarshaler_all) = true;
 option (gogoproto.marshaler_all) = true;
 option (gogoproto.equal_all) = true;
 
-
+// OrderBook - Order book real-time and historical data service.
+//
+// It can strean real-time updates of orderbook and trades,
+// or you can pull historical data of all trades of currency pair
+// on a single exchange.
 service OrderBook {
-    // Orders - Streams order book updates.
-    // rpc Orders(OrdersRequest) returns (stream OrderBookUpdate) {};
-
-    // Trades - Streams trades.
-    // rpc Trades(OrdersRequest) returns (stream orderbook.Event) {};
+    // Read - Starts streaming real-time updates of an order book,
+    // and all trades happening in real-time.
+    // Batches are sent in `MaxBatchSize` when reading from history,
+    // or in received size in real-time when live streaming.
+    rpc Read(ReadRequest) returns (stream BatchEvents) {};
 }
 
-// Event - Order or Trade event.
-message Event {
-    oneof event {
-        order.Order order = 1;
-        order.Trade trade = 2;
-    }
+// ReadRequest - Order book read request.
+// It can be a real-time or historical data request.
+message ReadRequest {
+    // Pair - Currency pair.
+    currency.Pair pair = 1;
+
+    // Exchange - Identifier of an exchange.
+    exchange.Exchange exchange = 2;
+
+    // Start - Time of a first order to read.
+    // If it is zero it will start reading from first record.
+    google.protobuf.Timestamp start = 3;
+
+    // End - Time of a last order to read.
+    // `Zero` will indicate we want to read until the end,
+    // in case of historical data it will be last existing trade,
+    // in case of real-time data it will stream updates forever.
+    google.protobuf.Timestamp end = 4;
+
+    // MaxBatchSize - Maximum size of a single batch sent.
+    int64 max_batch_size = 5;
 }

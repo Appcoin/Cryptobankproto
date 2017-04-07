@@ -7,9 +7,12 @@
 
 	It is generated from these files:
 		github.com/crypto-bank/proto/orderbook/orderbook.proto
+		github.com/crypto-bank/proto/orderbook/event.proto
 
 	It has these top-level messages:
+		ReadRequest
 		Event
+		BatchEvents
 */
 package orderbook
 
@@ -17,7 +20,14 @@ import proto "github.com/gogo/protobuf/proto"
 import fmt "fmt"
 import math "math"
 import _ "github.com/gogo/protobuf/gogoproto"
-import order "github.com/crypto-bank/proto/order"
+import google_protobuf1 "github.com/gogo/protobuf/types"
+import exchange "github.com/crypto-bank/proto/exchange"
+import currency "github.com/crypto-bank/proto/currency"
+
+import (
+	context "golang.org/x/net/context"
+	grpc "google.golang.org/grpc"
+)
 
 import io "io"
 
@@ -32,135 +42,69 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion2 // please upgrade the proto package
 
-// Event - Order or Trade event.
-type Event struct {
-	// Types that are valid to be assigned to Event:
-	//	*Event_Order
-	//	*Event_Trade
-	Event isEvent_Event `protobuf_oneof:"event"`
+// ReadRequest - Order book read request.
+// It can be a real-time or historical data request.
+type ReadRequest struct {
+	// Pair - Currency pair.
+	Pair *currency.Pair `protobuf:"bytes,1,opt,name=pair" json:"pair,omitempty"`
+	// Exchange - Identifier of an exchange.
+	Exchange exchange.Exchange `protobuf:"varint,2,opt,name=exchange,proto3,enum=exchange.Exchange" json:"exchange,omitempty"`
+	// Start - Time of a first order to read.
+	// If it is zero it will start reading from first record.
+	Start *google_protobuf1.Timestamp `protobuf:"bytes,3,opt,name=start" json:"start,omitempty"`
+	// End - Time of a last order to read.
+	// `Zero` will indicate we want to read until the end,
+	// in case of historical data it will be last existing trade,
+	// in case of real-time data it will stream updates forever.
+	End *google_protobuf1.Timestamp `protobuf:"bytes,4,opt,name=end" json:"end,omitempty"`
+	// MaxBatchSize - Maximum size of a single batch sent.
+	MaxBatchSize int64 `protobuf:"varint,5,opt,name=max_batch_size,proto3" json:"max_batch_size,omitempty"`
 }
 
-func (m *Event) Reset()                    { *m = Event{} }
-func (m *Event) String() string            { return proto.CompactTextString(m) }
-func (*Event) ProtoMessage()               {}
-func (*Event) Descriptor() ([]byte, []int) { return fileDescriptorOrderbook, []int{0} }
+func (m *ReadRequest) Reset()                    { *m = ReadRequest{} }
+func (m *ReadRequest) String() string            { return proto.CompactTextString(m) }
+func (*ReadRequest) ProtoMessage()               {}
+func (*ReadRequest) Descriptor() ([]byte, []int) { return fileDescriptorOrderbook, []int{0} }
 
-type isEvent_Event interface {
-	isEvent_Event()
-	Equal(interface{}) bool
-	MarshalTo([]byte) (int, error)
-	Size() int
-}
-
-type Event_Order struct {
-	Order *order.Order `protobuf:"bytes,1,opt,name=order,oneof"`
-}
-type Event_Trade struct {
-	Trade *order.Trade `protobuf:"bytes,2,opt,name=trade,oneof"`
-}
-
-func (*Event_Order) isEvent_Event() {}
-func (*Event_Trade) isEvent_Event() {}
-
-func (m *Event) GetEvent() isEvent_Event {
+func (m *ReadRequest) GetPair() *currency.Pair {
 	if m != nil {
-		return m.Event
+		return m.Pair
 	}
 	return nil
 }
 
-func (m *Event) GetOrder() *order.Order {
-	if x, ok := m.GetEvent().(*Event_Order); ok {
-		return x.Order
+func (m *ReadRequest) GetExchange() exchange.Exchange {
+	if m != nil {
+		return m.Exchange
+	}
+	return exchange.Poloniex
+}
+
+func (m *ReadRequest) GetStart() *google_protobuf1.Timestamp {
+	if m != nil {
+		return m.Start
 	}
 	return nil
 }
 
-func (m *Event) GetTrade() *order.Trade {
-	if x, ok := m.GetEvent().(*Event_Trade); ok {
-		return x.Trade
+func (m *ReadRequest) GetEnd() *google_protobuf1.Timestamp {
+	if m != nil {
+		return m.End
 	}
 	return nil
 }
 
-// XXX_OneofFuncs is for the internal use of the proto package.
-func (*Event) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
-	return _Event_OneofMarshaler, _Event_OneofUnmarshaler, _Event_OneofSizer, []interface{}{
-		(*Event_Order)(nil),
-		(*Event_Trade)(nil),
+func (m *ReadRequest) GetMaxBatchSize() int64 {
+	if m != nil {
+		return m.MaxBatchSize
 	}
-}
-
-func _Event_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
-	m := msg.(*Event)
-	// event
-	switch x := m.Event.(type) {
-	case *Event_Order:
-		_ = b.EncodeVarint(1<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.Order); err != nil {
-			return err
-		}
-	case *Event_Trade:
-		_ = b.EncodeVarint(2<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.Trade); err != nil {
-			return err
-		}
-	case nil:
-	default:
-		return fmt.Errorf("Event.Event has unexpected type %T", x)
-	}
-	return nil
-}
-
-func _Event_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
-	m := msg.(*Event)
-	switch tag {
-	case 1: // event.order
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(order.Order)
-		err := b.DecodeMessage(msg)
-		m.Event = &Event_Order{msg}
-		return true, err
-	case 2: // event.trade
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(order.Trade)
-		err := b.DecodeMessage(msg)
-		m.Event = &Event_Trade{msg}
-		return true, err
-	default:
-		return false, nil
-	}
-}
-
-func _Event_OneofSizer(msg proto.Message) (n int) {
-	m := msg.(*Event)
-	// event
-	switch x := m.Event.(type) {
-	case *Event_Order:
-		s := proto.Size(x.Order)
-		n += proto.SizeVarint(1<<3 | proto.WireBytes)
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *Event_Trade:
-		s := proto.Size(x.Trade)
-		n += proto.SizeVarint(2<<3 | proto.WireBytes)
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case nil:
-	default:
-		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
-	}
-	return n
+	return 0
 }
 
 func init() {
-	proto.RegisterType((*Event)(nil), "orderbook.Event")
+	proto.RegisterType((*ReadRequest)(nil), "orderbook.ReadRequest")
 }
-func (this *Event) Equal(that interface{}) bool {
+func (this *ReadRequest) Equal(that interface{}) bool {
 	if that == nil {
 		if this == nil {
 			return true
@@ -168,9 +112,9 @@ func (this *Event) Equal(that interface{}) bool {
 		return false
 	}
 
-	that1, ok := that.(*Event)
+	that1, ok := that.(*ReadRequest)
 	if !ok {
-		that2, ok := that.(Event)
+		that2, ok := that.(ReadRequest)
 		if ok {
 			that1 = &that2
 		} else {
@@ -185,78 +129,132 @@ func (this *Event) Equal(that interface{}) bool {
 	} else if this == nil {
 		return false
 	}
-	if that1.Event == nil {
-		if this.Event != nil {
-			return false
-		}
-	} else if this.Event == nil {
+	if !this.Pair.Equal(that1.Pair) {
 		return false
-	} else if !this.Event.Equal(that1.Event) {
+	}
+	if this.Exchange != that1.Exchange {
+		return false
+	}
+	if !this.Start.Equal(that1.Start) {
+		return false
+	}
+	if !this.End.Equal(that1.End) {
+		return false
+	}
+	if this.MaxBatchSize != that1.MaxBatchSize {
 		return false
 	}
 	return true
 }
-func (this *Event_Order) Equal(that interface{}) bool {
-	if that == nil {
-		if this == nil {
-			return true
-		}
-		return false
-	}
 
-	that1, ok := that.(*Event_Order)
-	if !ok {
-		that2, ok := that.(Event_Order)
-		if ok {
-			that1 = &that2
-		} else {
-			return false
-		}
-	}
-	if that1 == nil {
-		if this == nil {
-			return true
-		}
-		return false
-	} else if this == nil {
-		return false
-	}
-	if !this.Order.Equal(that1.Order) {
-		return false
-	}
-	return true
-}
-func (this *Event_Trade) Equal(that interface{}) bool {
-	if that == nil {
-		if this == nil {
-			return true
-		}
-		return false
-	}
+// Reference imports to suppress errors if they are not otherwise used.
+var _ context.Context
+var _ grpc.ClientConn
 
-	that1, ok := that.(*Event_Trade)
-	if !ok {
-		that2, ok := that.(Event_Trade)
-		if ok {
-			that1 = &that2
-		} else {
-			return false
-		}
-	}
-	if that1 == nil {
-		if this == nil {
-			return true
-		}
-		return false
-	} else if this == nil {
-		return false
-	}
-	if !this.Trade.Equal(that1.Trade) {
-		return false
-	}
-	return true
+// This is a compile-time assertion to ensure that this generated file
+// is compatible with the grpc package it is being compiled against.
+const _ = grpc.SupportPackageIsVersion4
+
+// Client API for OrderBook service
+
+type OrderBookClient interface {
+	// Read - Starts streaming real-time updates of an order book,
+	// and all trades happening in real-time.
+	// Batches are sent in `MaxBatchSize` when reading from history,
+	// or in received size in real-time when live streaming.
+	Read(ctx context.Context, in *ReadRequest, opts ...grpc.CallOption) (OrderBook_ReadClient, error)
 }
-func (m *Event) Marshal() (dAtA []byte, err error) {
+
+type orderBookClient struct {
+	cc *grpc.ClientConn
+}
+
+func NewOrderBookClient(cc *grpc.ClientConn) OrderBookClient {
+	return &orderBookClient{cc}
+}
+
+func (c *orderBookClient) Read(ctx context.Context, in *ReadRequest, opts ...grpc.CallOption) (OrderBook_ReadClient, error) {
+	stream, err := grpc.NewClientStream(ctx, &_OrderBook_serviceDesc.Streams[0], c.cc, "/orderbook.OrderBook/Read", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &orderBookReadClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type OrderBook_ReadClient interface {
+	Recv() (*BatchEvents, error)
+	grpc.ClientStream
+}
+
+type orderBookReadClient struct {
+	grpc.ClientStream
+}
+
+func (x *orderBookReadClient) Recv() (*BatchEvents, error) {
+	m := new(BatchEvents)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+// Server API for OrderBook service
+
+type OrderBookServer interface {
+	// Read - Starts streaming real-time updates of an order book,
+	// and all trades happening in real-time.
+	// Batches are sent in `MaxBatchSize` when reading from history,
+	// or in received size in real-time when live streaming.
+	Read(*ReadRequest, OrderBook_ReadServer) error
+}
+
+func RegisterOrderBookServer(s *grpc.Server, srv OrderBookServer) {
+	s.RegisterService(&_OrderBook_serviceDesc, srv)
+}
+
+func _OrderBook_Read_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(ReadRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(OrderBookServer).Read(m, &orderBookReadServer{stream})
+}
+
+type OrderBook_ReadServer interface {
+	Send(*BatchEvents) error
+	grpc.ServerStream
+}
+
+type orderBookReadServer struct {
+	grpc.ServerStream
+}
+
+func (x *orderBookReadServer) Send(m *BatchEvents) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+var _OrderBook_serviceDesc = grpc.ServiceDesc{
+	ServiceName: "orderbook.OrderBook",
+	HandlerType: (*OrderBookServer)(nil),
+	Methods:     []grpc.MethodDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "Read",
+			Handler:       _OrderBook_Read_Handler,
+			ServerStreams: true,
+		},
+	},
+	Metadata: "github.com/crypto-bank/proto/orderbook/orderbook.proto",
+}
+
+func (m *ReadRequest) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalTo(dAtA)
@@ -266,49 +264,54 @@ func (m *Event) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *Event) MarshalTo(dAtA []byte) (int, error) {
+func (m *ReadRequest) MarshalTo(dAtA []byte) (int, error) {
 	var i int
 	_ = i
 	var l int
 	_ = l
-	if m.Event != nil {
-		nn1, err := m.Event.MarshalTo(dAtA[i:])
+	if m.Pair != nil {
+		dAtA[i] = 0xa
+		i++
+		i = encodeVarintOrderbook(dAtA, i, uint64(m.Pair.Size()))
+		n1, err := m.Pair.MarshalTo(dAtA[i:])
 		if err != nil {
 			return 0, err
 		}
-		i += nn1
+		i += n1
 	}
-	return i, nil
-}
-
-func (m *Event_Order) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
-	if m.Order != nil {
-		dAtA[i] = 0xa
+	if m.Exchange != 0 {
+		dAtA[i] = 0x10
 		i++
-		i = encodeVarintOrderbook(dAtA, i, uint64(m.Order.Size()))
-		n2, err := m.Order.MarshalTo(dAtA[i:])
+		i = encodeVarintOrderbook(dAtA, i, uint64(m.Exchange))
+	}
+	if m.Start != nil {
+		dAtA[i] = 0x1a
+		i++
+		i = encodeVarintOrderbook(dAtA, i, uint64(m.Start.Size()))
+		n2, err := m.Start.MarshalTo(dAtA[i:])
 		if err != nil {
 			return 0, err
 		}
 		i += n2
 	}
-	return i, nil
-}
-func (m *Event_Trade) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
-	if m.Trade != nil {
-		dAtA[i] = 0x12
+	if m.End != nil {
+		dAtA[i] = 0x22
 		i++
-		i = encodeVarintOrderbook(dAtA, i, uint64(m.Trade.Size()))
-		n3, err := m.Trade.MarshalTo(dAtA[i:])
+		i = encodeVarintOrderbook(dAtA, i, uint64(m.End.Size()))
+		n3, err := m.End.MarshalTo(dAtA[i:])
 		if err != nil {
 			return 0, err
 		}
 		i += n3
 	}
+	if m.MaxBatchSize != 0 {
+		dAtA[i] = 0x28
+		i++
+		i = encodeVarintOrderbook(dAtA, i, uint64(m.MaxBatchSize))
+	}
 	return i, nil
 }
+
 func encodeFixed64Orderbook(dAtA []byte, offset int, v uint64) int {
 	dAtA[offset] = uint8(v)
 	dAtA[offset+1] = uint8(v >> 8)
@@ -336,30 +339,26 @@ func encodeVarintOrderbook(dAtA []byte, offset int, v uint64) int {
 	dAtA[offset] = uint8(v)
 	return offset + 1
 }
-func (m *Event) Size() (n int) {
+func (m *ReadRequest) Size() (n int) {
 	var l int
 	_ = l
-	if m.Event != nil {
-		n += m.Event.Size()
-	}
-	return n
-}
-
-func (m *Event_Order) Size() (n int) {
-	var l int
-	_ = l
-	if m.Order != nil {
-		l = m.Order.Size()
+	if m.Pair != nil {
+		l = m.Pair.Size()
 		n += 1 + l + sovOrderbook(uint64(l))
 	}
-	return n
-}
-func (m *Event_Trade) Size() (n int) {
-	var l int
-	_ = l
-	if m.Trade != nil {
-		l = m.Trade.Size()
+	if m.Exchange != 0 {
+		n += 1 + sovOrderbook(uint64(m.Exchange))
+	}
+	if m.Start != nil {
+		l = m.Start.Size()
 		n += 1 + l + sovOrderbook(uint64(l))
+	}
+	if m.End != nil {
+		l = m.End.Size()
+		n += 1 + l + sovOrderbook(uint64(l))
+	}
+	if m.MaxBatchSize != 0 {
+		n += 1 + sovOrderbook(uint64(m.MaxBatchSize))
 	}
 	return n
 }
@@ -377,7 +376,7 @@ func sovOrderbook(x uint64) (n int) {
 func sozOrderbook(x uint64) (n int) {
 	return sovOrderbook(uint64((x << 1) ^ uint64((int64(x) >> 63))))
 }
-func (m *Event) Unmarshal(dAtA []byte) error {
+func (m *ReadRequest) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -400,15 +399,15 @@ func (m *Event) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: Event: wiretype end group for non-group")
+			return fmt.Errorf("proto: ReadRequest: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: Event: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: ReadRequest: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Order", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field Pair", wireType)
 			}
 			var msglen int
 			for shift := uint(0); ; shift += 7 {
@@ -432,15 +431,35 @@ func (m *Event) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			v := &order.Order{}
-			if err := v.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+			if m.Pair == nil {
+				m.Pair = &currency.Pair{}
+			}
+			if err := m.Pair.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
-			m.Event = &Event_Order{v}
 			iNdEx = postIndex
 		case 2:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Exchange", wireType)
+			}
+			m.Exchange = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowOrderbook
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.Exchange |= (exchange.Exchange(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 3:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Trade", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field Start", wireType)
 			}
 			var msglen int
 			for shift := uint(0); ; shift += 7 {
@@ -464,12 +483,65 @@ func (m *Event) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			v := &order.Trade{}
-			if err := v.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+			if m.Start == nil {
+				m.Start = &google_protobuf1.Timestamp{}
+			}
+			if err := m.Start.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
-			m.Event = &Event_Trade{v}
 			iNdEx = postIndex
+		case 4:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field End", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowOrderbook
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthOrderbook
+			}
+			postIndex := iNdEx + msglen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.End == nil {
+				m.End = &google_protobuf1.Timestamp{}
+			}
+			if err := m.End.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 5:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field MaxBatchSize", wireType)
+			}
+			m.MaxBatchSize = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowOrderbook
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.MaxBatchSize |= (int64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
 		default:
 			iNdEx = preIndex
 			skippy, err := skipOrderbook(dAtA[iNdEx:])
@@ -601,18 +673,27 @@ func init() {
 }
 
 var fileDescriptorOrderbook = []byte{
-	// 197 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0x32, 0x4b, 0xcf, 0x2c, 0xc9,
-	0x28, 0x4d, 0xd2, 0x4b, 0xce, 0xcf, 0xd5, 0x4f, 0x2e, 0xaa, 0x2c, 0x28, 0xc9, 0xd7, 0x4d, 0x4a,
-	0xcc, 0xcb, 0xd6, 0x2f, 0x28, 0xca, 0x2f, 0xc9, 0xd7, 0xcf, 0x2f, 0x4a, 0x49, 0x2d, 0x4a, 0xca,
-	0xcf, 0xcf, 0x46, 0xb0, 0xf4, 0xc0, 0x32, 0x42, 0x9c, 0x70, 0x01, 0x29, 0x5d, 0x24, 0x23, 0xd2,
-	0xf3, 0xd3, 0xf3, 0x21, 0x7a, 0x93, 0x4a, 0xd3, 0xc0, 0x3c, 0x88, 0x41, 0x20, 0x16, 0x44, 0xa7,
-	0x94, 0x1e, 0x61, 0x1b, 0x21, 0x24, 0x44, 0xbd, 0x92, 0x1f, 0x17, 0xab, 0x6b, 0x59, 0x6a, 0x5e,
-	0x89, 0x90, 0x2c, 0x17, 0x2b, 0x58, 0x5c, 0x82, 0x51, 0x81, 0x51, 0x83, 0xdb, 0x88, 0x47, 0x0f,
-	0xa2, 0xca, 0x1f, 0x44, 0x7a, 0x30, 0x80, 0xa4, 0x4b, 0x8a, 0x12, 0x53, 0x52, 0x25, 0x98, 0x50,
-	0xa4, 0x43, 0x40, 0x62, 0x1e, 0x0c, 0x4e, 0xec, 0x5c, 0xac, 0xa9, 0x20, 0x63, 0x8c, 0xb8, 0xb9,
-	0x38, 0xc1, 0x5a, 0x9c, 0xf2, 0xf3, 0xb3, 0x9d, 0xe4, 0x57, 0x3c, 0x92, 0x63, 0x3c, 0xf1, 0x48,
-	0x8e, 0xf1, 0xc2, 0x23, 0x39, 0xc6, 0x07, 0x8f, 0xe4, 0x18, 0x27, 0x3c, 0x96, 0x63, 0x88, 0x42,
-	0x78, 0x2e, 0x89, 0x0d, 0xec, 0x08, 0x63, 0x40, 0x00, 0x00, 0x00, 0xff, 0xff, 0xed, 0x91, 0x13,
-	0xdc, 0x28, 0x01, 0x00, 0x00,
+	// 343 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x8c, 0x52, 0xc1, 0x4e, 0xf2, 0x40,
+	0x10, 0x66, 0x7f, 0xe0, 0x8f, 0x2c, 0x09, 0x87, 0x3d, 0x90, 0xa6, 0x31, 0x95, 0x10, 0x13, 0xf1,
+	0xc0, 0x62, 0xaa, 0xf1, 0xe0, 0x4d, 0x12, 0xe2, 0x51, 0x43, 0x3c, 0x79, 0x21, 0xdb, 0x65, 0x2c,
+	0x0d, 0xb6, 0x53, 0xb7, 0x5b, 0x03, 0x3e, 0x85, 0x8f, 0xe1, 0x4b, 0x78, 0xf7, 0xe8, 0x23, 0x98,
+	0xfa, 0x22, 0xa6, 0x2d, 0xb4, 0xbd, 0xa8, 0xdc, 0xbe, 0x99, 0x9d, 0xef, 0xdb, 0x6f, 0xbe, 0x0c,
+	0x3d, 0x77, 0x3d, 0xbd, 0x88, 0x1d, 0x2e, 0xd1, 0x1f, 0x49, 0xb5, 0x0e, 0x35, 0x0e, 0x1d, 0x11,
+	0x2c, 0x47, 0xa1, 0x42, 0x8d, 0x23, 0x54, 0x73, 0x50, 0x0e, 0xe2, 0xb2, 0x44, 0x3c, 0x7b, 0x61,
+	0xad, 0xa2, 0x61, 0x0e, 0x2b, 0x12, 0x2e, 0xba, 0x98, 0x73, 0x9d, 0xf8, 0x3e, 0xab, 0x72, 0xa1,
+	0x14, 0xe5, 0x4c, 0xf3, 0xf2, 0xc7, 0xf1, 0x0a, 0x0f, 0xdd, 0x07, 0x28, 0x6b, 0xed, 0xf9, 0x10,
+	0x69, 0xe1, 0x87, 0x1b, 0x89, 0xb3, 0x5f, 0x4d, 0xc3, 0x4a, 0x2e, 0x44, 0xe0, 0x42, 0x01, 0x76,
+	0x62, 0xc9, 0x58, 0x29, 0x08, 0xe4, 0xba, 0x00, 0x1b, 0x96, 0xbd, 0x63, 0x40, 0xf0, 0x04, 0x81,
+	0xce, 0x39, 0xfd, 0x37, 0x42, 0xdb, 0x53, 0x10, 0xf3, 0x29, 0x3c, 0xc6, 0x10, 0x69, 0xb6, 0x4f,
+	0x1b, 0xa1, 0xf0, 0x94, 0x41, 0x7a, 0x64, 0xd0, 0xb6, 0x3b, 0xbc, 0xf8, 0xe2, 0x46, 0x78, 0x8a,
+	0x1d, 0xd2, 0xbd, 0xad, 0x53, 0xe3, 0x5f, 0x8f, 0x0c, 0x3a, 0x36, 0xe3, 0x85, 0xf5, 0xc9, 0x06,
+	0xb0, 0x63, 0xda, 0x8c, 0xb4, 0x50, 0xda, 0xa8, 0x67, 0x22, 0x26, 0xcf, 0x43, 0xe2, 0xdb, 0x90,
+	0xf8, 0xed, 0x36, 0x24, 0x76, 0x44, 0xeb, 0x10, 0xcc, 0x8d, 0xc6, 0x9f, 0x83, 0x5d, 0xda, 0xf1,
+	0xc5, 0x6a, 0xe6, 0x08, 0x2d, 0x17, 0xb3, 0xc8, 0x7b, 0x06, 0xa3, 0xd9, 0x23, 0x83, 0xba, 0x7d,
+	0x45, 0x5b, 0xd7, 0xe9, 0x62, 0x63, 0xc4, 0x25, 0xbb, 0xa0, 0x8d, 0x74, 0x17, 0xd6, 0xe5, 0xe5,
+	0x0d, 0x54, 0x96, 0x33, 0xab, 0xfd, 0x71, 0xaa, 0x34, 0x49, 0x93, 0x88, 0xfa, 0xb5, 0x13, 0x32,
+	0x3e, 0x78, 0x4d, 0x2c, 0xf2, 0x9e, 0x58, 0xe4, 0x23, 0xb1, 0xc8, 0x67, 0x62, 0x91, 0x97, 0x2f,
+	0xab, 0x76, 0x57, 0xde, 0x8e, 0xf3, 0x3f, 0x73, 0x75, 0xfa, 0x1d, 0x00, 0x00, 0xff, 0xff, 0x34,
+	0xce, 0xe0, 0xd0, 0x87, 0x02, 0x00, 0x00,
 }
