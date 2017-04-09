@@ -28,7 +28,7 @@ func NewVolume(currency *Currency, amount float64) *Volume {
 
 // ParsePair - Parses a currency pair separated by a symbol.
 func ParsePair(pair, symbol string) (_ *Pair, err error) {
-	s := strings.Split(pair, symbol)
+	s := strings.Split(strings.ToUpper(pair), symbol)
 	if len(s) != 2 {
 		return nil, fmt.Errorf("currency pair %q is not valid (sep: %s)", pair, symbol)
 	}
