@@ -1,6 +1,9 @@
 package currency
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 // FromString - Creates a currency from a symbol string.
 func FromString(symbol string) *Currency {
@@ -21,6 +24,15 @@ func NewVolume(currency *Currency, amount float64) *Volume {
 		Currency: currency,
 		Amount:   amount,
 	}
+}
+
+// ParsePair - Parses a currency pair separated by a symbol.
+func ParsePair(pair, symbol string) (_ *Pair, err error) {
+	s := strings.Split(pair, symbol)
+	if len(s) != 2 {
+		return nil, fmt.Errorf("currency pair %q is not valid (sep: %s)", pair, symbol)
+	}
+	return NewPair(s[0], s[1]), nil
 }
 
 // Concat - Concats currency pair with a symbol.
